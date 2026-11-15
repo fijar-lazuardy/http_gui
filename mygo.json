@@ -1,0 +1,6 @@
+{
+  "name": "HTTP GUI",
+  "identifier": "com.example.httpgui",
+  "version": "0.1.0",
+  "out": "build"
+}
