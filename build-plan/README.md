@@ -80,8 +80,9 @@ need no window.
 
 | Step | State |
 | --- | --- |
-| 00-04 | Done: `go test ./...`, `go vet ./...` and `go tool mygo vet .` pass. The window itself has not been opened yet (step 00 was built in a shell without a display). |
-| 05-09 | Not started |
+| 00-04 | Done: `go test ./...`, `go vet ./...` and `go tool mygo vet .` pass. |
+| 05-06 | Done: the same checks pass, `go test -race ./internal/app` too, and the window opens on a desktop. Not yet done by hand: step 06's JSON POST with an HMAC script against a public echo service. |
+| 07-09 | Not started |
 
 ## Settled
 
@@ -90,17 +91,12 @@ need no window.
    `com.example.httpgui`, to set before packaging (step 09).
 2. **Scripts are JS and TS only.** No Go-language scripts.
 3. **Scripts are inline** strings in the request's JSON, as Postman keeps them.
-
-## Open questions
-
-1. **Secret variables.** Now: a `secret` flag that masks the value in the UI, stored in the
-   same JSON. `mygo.Secrets` (system keychain) is the upgrade. Decide before step 05.
+4. **Secret variables** are a `secret` flag that masks the value in the UI, stored in plain
+   text in the same JSON. Encrypting them (`mygo.Secrets`, the system keychain) comes later.
 
 ## Things to verify while building
 
 These come from docs or memory, not from running code:
 
-- `ui.Split` is documented as side by side; a top/bottom split for request over response
-  may need a `Column` with a draggable divider instead (step 06).
 - Bruno's current on-disk format (classic `.bru` vs. the newer YAML one) at import time
   (step 08).

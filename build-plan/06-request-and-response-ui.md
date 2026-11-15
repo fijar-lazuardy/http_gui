@@ -19,7 +19,10 @@
 - **Request line:** `ui.Select` of methods, `ui.TextInput` for the URL (`Submitted` sends),
   `ui.PrimaryButton` "Send", which reads "Cancel" while a run is in flight.
 - **Params / Headers:** the key/value editor from step 05. Params and the URL's query string
-  stay in sync in both directions.
+  stay in sync in both directions. On disk the request's `url` has no query: the URL field
+  shows `url` with the enabled params after it, unescaped, and typing a query in it moves
+  it into `params` (httpx appends the params to the URL, so keeping both would send the
+  query twice). Rows switched off stay in Params only.
 - **Body:** `ui.Segmented` of None / JSON / Form / URL-encoded.
   - JSON: `editor.View` from `ui/editor` with the JSON language (`editor.LanguageNamed`),
     one `editor.State` per open request kept in `App`. A "Format" button pretty-prints valid
@@ -60,16 +63,19 @@ func (a *App) send() {
 The goroutine only touches its copies. `finish` stores the result, persists changed
 variables and resets the editor buffers that show the response.
 
+Each run has a number: Cancel, a new Send or opening another request drops the result of
+the run in flight, variables included. Redirects are followed and there is no timeout
+other than Cancel, until the settings of step 09.
+
 ## Split between request and response
 
-`ui.Split` is documented as side by side. Check whether it has a vertical form; if not, use
-a `Column` with a fixed, draggable divider (pointer drag on a thin element, see the Input
-guide). Do not block the step on this: a fixed 50/50 column is acceptable first.
+`ui.SplitVerticalPercent`, 50/50 at first; both panes grow with the window.
 
 ## Tests (`ui.NewTester` + `httptest.Server`)
 
-- Type a URL, click Send: the status and body text appear. The test waits on a channel
-  closed in `finish`, then calls `tt.Frame()`; it never sleeps.
+- Type a URL, click Send: the status and body text appear. The test's `update` sends the
+  run's result to a channel; the test runs it from there, then calls `tt.Frame()`; it never
+  sleeps.
 - Changing the method select sends that method.
 - A header added in the editor reaches the server.
 - Each body kind entered in the UI reaches the server decoded as entered.

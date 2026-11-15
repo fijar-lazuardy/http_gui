@@ -10,7 +10,7 @@ One struct holds everything that lasts; the view is a method on it and runs ever
 
 ```go
 type App struct {
-    win   *mygo.Window
+    update func(func())     // the window's Update; a test passes its own
     ws    *store.Workspace
     envID string            // chosen environment, "" for none
     open  *model.Request    // the request being edited
@@ -44,12 +44,16 @@ MyGo rules that shape this (see `AGENTS.md`):
 ```
 
 - `ui.Split(c, &a.sidebarWidth, a.sidebar, a.main).Fill()`.
-- Sidebar: `ui.Select` for the environment ("No environment" first), then `ui.Tree` with
-  `ui.TreeItem` per folder and request. A request row shows its method as a short colored
-  label before the name.
+- Sidebar: `ui.Select` for the environment ("No environment" first), then the tree. A
+  request row shows its method as a short colored label before the name, which
+  `ui.TreeItem` cannot hold (its row is one text), so the tree is `ui.TreeBase` with rows
+  styled as `TreeItem`'s.
+- The Import button arrives with step 07; until then the sidebar has "+ New collection".
 - Context menu on tree items (`ContextMenu`): New request, New folder, Rename, Duplicate,
   Delete. Delete asks with `ui.AlertDialog`.
-- Rename uses `ui.EditableText` or a small `ui.Modal`, whichever is simpler in practice.
+- Rename uses a small `ui.Modal`.
+- Menu actions that add to the tree (New, Duplicate) run once the tree is built, not while
+  its loop runs.
 - Environments: a `ui.Modal` listing environments and globals, each edited with the
   key/value editor below.
 
@@ -58,8 +62,11 @@ MyGo rules that shape this (see `AGENTS.md`):
 Built once here, reused for variables now and for params, headers and form fields in step 06.
 
 ```go
-func kvEditor(c *ui.Context, rows *[]model.KV, opt kvOptions) (changed bool)
+func (a *App) kvEditor(c *ui.Context, rows *[]model.KV, opt kvOptions) (changed bool)
 ```
+
+A method, because typing in the empty row moves the focus to the row it made, through a
+`FocusBind` field in `App`.
 
 Each row: enabled `ui.Checkbox`, key `ui.TextInput`, value `ui.TextInput` (`Password()` when
 `Secret`), delete button. An empty row is always shown last; typing in it appends a row.
@@ -68,7 +75,11 @@ Rows are keyed by `KV.ID`.
 ## Saving
 
 Edits save on change, debounced (`c.After`), one file at a time through `internal/store`.
-No explicit save button in v1. Save errors show as a `c.Toast`.
+No explicit save button in v1. Save errors show as a `c.Toast`. Pending edits are written
+before a rename, a duplicate or a delete, and as the window closes.
+
+The workspace is `mygo.App.Path(mygo.PathUserData)/workspace` (step 01); files that do not
+parse show as toasts when the window opens.
 
 ## Tests (`ui.NewTester`)
 
