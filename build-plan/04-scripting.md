@@ -4,6 +4,39 @@
 script after the response arrives. Scripts are JavaScript or TypeScript and can hash, HMAC
 and sign with keys.
 
+## As built
+
+Done. What differs from the plan below, or was left open in it:
+
+- **`await` works without an event loop.** The script is the body of an async function
+  (so top-level `await` and `return` work), and goja runs promise jobs itself. There are no
+  timers and no requests, so a promise that is still pending when the script ends is an
+  error. `goja_nodejs/eventloop` is not used.
+- **`require`, not `import`.** Because the script is a function body, `import` statements
+  are a syntax error. `require('crypto')`, `require('crypto-js')` and `require('chai')` work.
+- **The sandbox.** `require` loads only those modules: its file loader always fails, and a
+  test fails if a file on disk can be required. There is no `process`, `fetch` or
+  `setTimeout`. Source maps are never read from files.
+- **Errors name the user's line.** esbuild writes an inline source map and goja reads it,
+  so `pre-request.ts:5` is line 5 as typed, also for TypeScript.
+- **`pm.request.url`** has `toString()` (as typed, `{{names}}` and all) and `getHost()`,
+  `getPath()`, `getQueryString()`, which answer for the URL **as it will be sent**:
+  variables resolved and params in the query. That is what a signature covers. Postman's
+  own return the unresolved parts.
+- **`pm.response.to`**: `have.status(code or reason)`, `have.header(name[, value])`,
+  `be.ok` (200), `be.success` (2xx). Nothing else of Postman's response assertions.
+- **ECDSA** signs in DER by default, as Node does; `{key, dsaEncoding: 'ieee-p1363'}` gives
+  r and s, as JWTs carry them.
+- **Not supported:** keys encrypted with a passphrase, `createCipheriv` (use
+  `CryptoJS.AES`), `pm.sendRequest`, `pm.cookies`, Postman's legacy `postman.*` and `tests[]`.
+- **Embedded JS** is in `internal/script/js/`, not `vendor/`, which Go treats specially.
+  crypto-js 4.2.0 and chai 4.5.0, minified, with their licenses and checksums.
+- **Persisting variables** is `vars.Apply(rows, scope)`: the runner returns the scopes as
+  the scripts left them in `Result.Scopes`, and the app writes each back to its rows and
+  saves. The runner itself touches no files.
+- **Canceling** a run during a script sets `Result.Err` to the context's error, not
+  `ScriptErr`.
+
 ## Engine (`internal/script`)
 
 - **goja** runs the script; one fresh `*goja.Runtime` per script run (a runtime is not safe

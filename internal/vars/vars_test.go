@@ -148,3 +148,51 @@ func TestResolveRequest(t *testing.T) {
 		t.Error("resolving changed the request as the user wrote it")
 	}
 }
+
+// After a run, what its scripts did to a scope goes back to the rows the
+// user sees and the file keeps: without touching what they did not change.
+func TestApply(t *testing.T) {
+	rows := []model.KV{
+		{ID: "1", Key: "keep", Value: "same", Enabled: true},
+		{ID: "2", Key: "token", Value: "old", Enabled: true, Secret: true},
+		{ID: "3", Key: "token", Value: "switched off"},
+		{ID: "4", Key: "gone", Value: "x", Enabled: true},
+		{ID: "5", Key: "dup", Value: "first", Enabled: true},
+		{ID: "6", Key: "dup", Value: "second", Enabled: true},
+	}
+	scope := Map(rows)
+	if _, changed := Apply(rows, scope); changed {
+		t.Error("a scope nothing changed was reported as changed")
+	}
+
+	scope["token"] = "new"
+	scope["dup"] = "set"
+	scope["added"] = "a"
+	delete(scope, "gone")
+	got, changed := Apply(rows, scope)
+	if !changed {
+		t.Error("changes were not reported")
+	}
+	if len(got) != 6 || got[5].ID == "" {
+		t.Fatalf("rows %+v", got)
+	}
+	got[5].ID = ""
+	want := []model.KV{
+		{ID: "1", Key: "keep", Value: "same", Enabled: true},
+		{ID: "2", Key: "token", Value: "new", Enabled: true, Secret: true},
+		{ID: "3", Key: "token", Value: "switched off"},
+		{ID: "5", Key: "dup", Value: "first", Enabled: true},
+		{ID: "6", Key: "dup", Value: "set", Enabled: true},
+		{Key: "added", Value: "a", Enabled: true},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("rows\n got %+v\nwant %+v", got, want)
+	}
+	// Reading the rows again gives the scope: nothing is lost on the way.
+	if !reflect.DeepEqual(Map(got), scope) {
+		t.Errorf("Map(Apply) = %v, want %v", Map(got), scope)
+	}
+	if rows[1].Value != "old" {
+		t.Error("Apply changed the rows it was given")
+	}
+}

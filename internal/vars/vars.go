@@ -5,6 +5,7 @@ package vars
 import (
 	crand "crypto/rand"
 	"fmt"
+	"maps"
 	"math/rand/v2"
 	"regexp"
 	"slices"
@@ -36,6 +37,40 @@ func Map(rows []model.KV) map[string]string {
 		}
 	}
 	return m
+}
+
+// Apply writes a scope back to the rows it came from, after a run whose
+// scripts may have changed it: a value that changed is set in its row, a
+// new name gets a row, and the rows of a name that was unset are removed.
+// Rows switched off are left alone. It returns the new rows, and whether
+// they differ from the old.
+func Apply(rows []model.KV, scope map[string]string) (out []model.KV, changed bool) {
+	last := map[string]int{} // key -> its last enabled row, the one Map reads
+	for i, kv := range rows {
+		if kv.Enabled && kv.Key != "" {
+			last[kv.Key] = i
+		}
+	}
+	for i, kv := range rows {
+		if kv.Enabled && kv.Key != "" {
+			value, ok := scope[kv.Key]
+			if !ok {
+				changed = true
+				continue
+			}
+			if i == last[kv.Key] && kv.Value != value {
+				kv.Value, changed = value, true
+			}
+		}
+		out = append(out, kv)
+	}
+	for _, key := range slices.Sorted(maps.Keys(scope)) {
+		if _, ok := last[key]; !ok && key != "" {
+			out = append(out, model.KV{ID: model.NewID(), Key: key, Value: scope[key], Enabled: true})
+			changed = true
+		}
+	}
+	return out, changed
 }
 
 // Lookup returns the value of a variable in the first scope that has it.
@@ -114,7 +149,7 @@ func ResolveRequest(r *model.Request, s *Scopes) (resolved *model.Request, missi
 func dynamic(name string) (string, bool) {
 	switch name {
 	case "$guid", "$randomUUID":
-		return uuid(), true
+		return UUID(), true
 	case "$timestamp":
 		return strconv.FormatInt(time.Now().Unix(), 10), true
 	case "$isoTimestamp":
@@ -125,8 +160,8 @@ func dynamic(name string) (string, bool) {
 	return "", false
 }
 
-// uuid returns a random (version 4) UUID.
-func uuid() string {
+// UUID returns a random (version 4) UUID.
+func UUID() string {
 	var b [16]byte
 	crand.Read(b[:]) // never fails
 	b[6] = b[6]&0x0f | 0x40

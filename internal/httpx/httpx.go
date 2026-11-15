@@ -50,24 +50,10 @@ func Build(ctx context.Context, r *model.Request) (*http.Request, error) {
 		method = http.MethodGet
 	}
 
-	raw := strings.TrimSpace(r.URL)
-	if raw == "" {
-		return nil, errors.New("the URL is empty")
-	}
-	if !strings.Contains(raw, "://") {
-		raw = "http://" + raw
-	}
-	u, err := url.Parse(raw)
+	u, err := URL(r)
 	if err != nil {
 		return nil, err
 	}
-	if q := encode(r.Params); q != "" {
-		if u.RawQuery != "" {
-			u.RawQuery += "&"
-		}
-		u.RawQuery += q
-	}
-
 	body, contentType, err := buildBody(r.Body)
 	if err != nil {
 		return nil, err
@@ -94,6 +80,29 @@ func Build(ctx context.Context, r *model.Request) (*http.Request, error) {
 		req.Header.Set("Content-Type", contentType)
 	}
 	return req, nil
+}
+
+// URL returns the URL r is sent to: the one written, with http:// before it
+// if it has no scheme, and the enabled parameters after its own query.
+func URL(r *model.Request) (*url.URL, error) {
+	raw := strings.TrimSpace(r.URL)
+	if raw == "" {
+		return nil, errors.New("the URL is empty")
+	}
+	if !strings.Contains(raw, "://") {
+		raw = "http://" + raw
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return nil, err
+	}
+	if q := encode(r.Params); q != "" {
+		if u.RawQuery != "" {
+			u.RawQuery += "&"
+		}
+		u.RawQuery += q
+	}
+	return u, nil
 }
 
 // buildBody returns the body's bytes, nil for none, and the content type

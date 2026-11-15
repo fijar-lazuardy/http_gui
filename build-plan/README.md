@@ -53,7 +53,8 @@ A run, in order (`internal/runner`):
 3. Resolve `{{name}}` everywhere in the request.
 4. Send, with a cancellable context.
 5. Run the post-response script (reads the response, may change variables, records tests).
-6. Persist changed variables, return the response, console output and test results.
+6. Return the response, console output, test results and the variables as the scripts
+   left them; the app writes those back to their rows (`vars.Apply`) and saves.
 
 Runs happen in a goroutine; the result reaches the view through `Window.Update`.
 
@@ -79,8 +80,8 @@ need no window.
 
 | Step | State |
 | --- | --- |
-| 00-03 | Done: `go test ./...`, `go vet ./...` and `go tool mygo vet .` pass. The window itself has not been opened yet (step 00 was built in a shell without a display). |
-| 04-09 | Not started |
+| 00-04 | Done: `go test ./...`, `go vet ./...` and `go tool mygo vet .` pass. The window itself has not been opened yet (step 00 was built in a shell without a display). |
+| 05-09 | Not started |
 
 ## Settled
 
@@ -101,8 +102,5 @@ These come from docs or memory, not from running code:
 
 - `ui.Split` is documented as side by side; a top/bottom split for request over response
   may need a `Column` with a draggable divider instead (step 06).
-- goja's async/await and Promise settling need an event loop (`goja_nodejs/eventloop`)
-  for scripts that `await` (step 04).
-- `goja_nodejs` has no `crypto` module of its own; step 04 writes it.
 - Bruno's current on-disk format (classic `.bru` vs. the newer YAML one) at import time
   (step 08).
