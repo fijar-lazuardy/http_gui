@@ -22,8 +22,7 @@ pkg: build
 # System-wide install (needs root)
 install: build
 	install -Dm755 $(BUILD_DIR)/http_gui $(DESTDIR)/usr/local/bin/http_gui
-	install -Dm644 resources/dbui.desktop $(DESTDIR)/usr/share/applications/http_gui.desktop
-	install -Dm644 resources/icon.svg $(DESTDIR)/usr/share/icons/hicolor/scalable/apps/http_gui.svg
+	install -Dm644 resources/http_gui.desktop $(DESTDIR)/usr/share/applications/http_gui.desktop
 	install -Dm644 resources/icon-48.png $(DESTDIR)/usr/share/icons/hicolor/48x48/apps/http_gui.png
 	install -Dm644 resources/icon-128.png $(DESTDIR)/usr/share/icons/hicolor/128x128/apps/http_gui.png
 	install -Dm644 resources/icon.png $(DESTDIR)/usr/share/icons/hicolor/256x256/apps/http_gui.png

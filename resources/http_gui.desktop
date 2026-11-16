@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=HTTP GUI
+Comment=HTTP client for testing APIs
+Exec=http_gui
+Icon=http_gui
+Type=Application
+Categories=Development;Network;
+Terminal=false
