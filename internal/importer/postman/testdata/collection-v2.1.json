@@ -1,0 +1,142 @@
+{
+  "info": {
+    "_postman_id": "0f1e2d3c-0000-4000-8000-000000000001",
+    "name": "Shop API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://shop.example" },
+    { "key": "old", "value": "x", "disabled": true }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.request.body.raw;",
+                  "const sig = CryptoJS.HmacSHA256(body, pm.environment.get('secret'));",
+                  "pm.environment.set('signature', sig.toString(CryptoJS.enc.Hex));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('logged in', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "X-Signature", "value": "{{signature}}" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"user\":\"ann\"}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/login", "host": ["{{baseUrl}}"], "path": ["login"] }
+          },
+          "response": []
+        },
+        {
+          "name": "Tokens",
+          "item": [
+            {
+              "name": "Refresh",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": { "raw": "{{baseUrl}}/refresh", "host": ["{{baseUrl}}"], "path": ["refresh"] }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "List items",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Accept", "value": "application/json" },
+          { "key": "X-Debug", "value": "1", "disabled": true }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/items?page=2&q=a%20b",
+          "host": ["{{baseUrl}}"],
+          "path": ["items"],
+          "query": [
+            { "key": "page", "value": "2" },
+            { "key": "q", "value": "a b" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Search",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/search?q=tea",
+          "query": [
+            { "key": "q", "value": "tea" },
+            { "key": "draft", "value": "1", "disabled": true }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Upload",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "Photo", "type": "text" },
+                { "key": "file", "type": "file", "src": ["/tmp/photo.png"] }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/upload" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Checkout",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            { "key": "coupon", "value": "TEA10" },
+            { "key": "gift", "value": "yes", "disabled": true }
+          ]
+        },
+        "url": { "raw": "{{baseUrl}}/checkout" }
+      }
+    }
+  ]
+}

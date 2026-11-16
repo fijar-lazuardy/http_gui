@@ -19,9 +19,19 @@ func (a *App) sidebar(c *ui.Context) {
 				a.envDialog = true
 			}
 		})
-		if ui.Button(c, "+ New collection").Clicked() {
-			a.newCollection()
-		}
+		ui.Row(c).Gap(t.Space(1)).Children(func() {
+			if ui.Button(c, "+ New collection").Clicked() {
+				a.newCollection()
+			}
+			ui.MenuButton(c, "Import", func(m *ui.Menu) {
+				if m.Item(importFiles).Chosen() {
+					a.pickImport(a.chooseImport, a.importFile)
+				}
+				if m.Item(importFolder).Chosen() {
+					a.pickImport(a.chooseFolder, a.importFolder)
+				}
+			})
+		})
 		ui.Scroll(c).Grow(1).FillWidth().Children(func() {
 			if len(a.ws.Collections) == 0 {
 				ui.Text(c, "No collections yet.").TextColor(t.TextMuted)
@@ -170,6 +180,7 @@ func (a *App) dialogs(c *ui.Context) {
 		}
 	}
 	a.environments(c)
+	a.importDialog(c)
 }
 
 func (a *App) openRequest(r *model.Request) {

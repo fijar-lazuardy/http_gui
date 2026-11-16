@@ -32,6 +32,10 @@ type App struct {
 	update func(func())
 	// chooseFile asks for a file to send in a multipart form.
 	chooseFile func() ([]string, error)
+	// chooseImport asks for the files to import, chooseFolder for the
+	// folder of a Bruno collection.
+	chooseImport func() ([]string, error)
+	chooseFolder func() ([]string, error)
 
 	sidebarWidth float32
 	splitPercent float32 // of the request pane over the response pane
@@ -52,6 +56,10 @@ type App struct {
 	renaming bool
 	newName  string
 	deleting bool
+
+	// What the last import did, and whether its dialog shows.
+	imported  []importReport
+	reporting bool
 
 	// The environments dialog.
 	envDialog bool
@@ -116,6 +124,16 @@ func New(ws *store.Workspace, update func(func())) *App {
 		splitPercent: 50,
 		chooseFile: func() ([]string, error) {
 			return mygo.Dialog.Open(mygo.OpenDialogOptions{Title: "Choose a file to send"})
+		},
+		chooseImport: func() ([]string, error) {
+			return mygo.Dialog.Open(mygo.OpenDialogOptions{
+				Title:    "Import Postman or Bruno files",
+				Filters:  []mygo.FileFilter{{Name: "JSON", Extensions: []string{"json"}}},
+				Multiple: true,
+			})
+		},
+		chooseFolder: func() ([]string, error) {
+			return mygo.Dialog.Open(mygo.OpenDialogOptions{Title: "Import a Bruno collection folder", Directory: true})
 		},
 	}
 	for _, p := range ws.Problems {

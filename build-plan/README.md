@@ -82,7 +82,9 @@ need no window.
 | --- | --- |
 | 00-04 | Done: `go test ./...`, `go vet ./...` and `go tool mygo vet .` pass. |
 | 05-06 | Done: the same checks pass, `go test -race ./internal/app` too, and the window opens on a desktop. Not yet done by hand: step 06's JSON POST with an HMAC script against a public echo service. |
-| 07-09 | Not started |
+| 07 | Done: the same checks pass. Not yet done by hand: importing a real export from Postman. |
+| 08 | Done for `.bru` folders and exported JSON: the same checks pass. Not yet done by hand: importing a collection made by Bruno. Bruno's YAML format is not imported (see below). |
+| 09 | Not started |
 
 ## Settled
 
@@ -94,9 +96,8 @@ need no window.
 4. **Secret variables** are a `secret` flag that masks the value in the UI, stored in plain
    text in the same JSON. Encrypting them (`mygo.Secrets`, the system keychain) comes later.
 
-## Things to verify while building
+## Open
 
-These come from docs or memory, not from running code:
-
-- Bruno's current on-disk format (classic `.bru` vs. the newer YAML one) at import time
-  (step 08).
+- **Bruno's YAML collections** (`opencollection.yml`, an option since Bruno 3.0) are refused
+  with a message. Importing them needs a YAML decoder, which is a new dependency: the
+  owner decides. It would be a third reader over the mapping step 08 has.

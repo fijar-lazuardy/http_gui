@@ -4,9 +4,9 @@ A Postman alternative with a native Go GUI: send HTTP requests, edit headers and
 use variables with `{{name}}`, run pre-request and post-response scripts, and import Postman
 and Bruno collections.
 
-**Status:** steps 00-06 of the plan are done: the scaffold, the model and its storage, the
-HTTP engine, variables, scripts, the sidebar and the request and response panes. Imports
-and polish are not. The plan is in
+**Status:** steps 00-08 of the plan are done: the scaffold, the model and its storage, the
+HTTP engine, variables, scripts, the sidebar, the request and response panes and the
+Postman and Bruno imports. Polish and packaging are not. The plan is in
 [`build-plan/`](build-plan/README.md), with a status table; do its steps in order.
 
 The module is `http_gui` and the app is "HTTP GUI". The folder's name, `http_tui`, is a typo.

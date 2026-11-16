@@ -1,0 +1,20 @@
+meta {
+  name: Purge
+  type: http
+  seq: 1
+}
+
+delete {
+  url: {{baseUrl}}/orders/:id
+  body: none
+  auth: basic
+}
+
+params:path {
+  id: 42
+}
+
+auth:basic {
+  username: ann
+  password: pw
+}

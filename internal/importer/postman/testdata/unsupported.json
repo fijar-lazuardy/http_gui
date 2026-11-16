@@ -1,0 +1,72 @@
+{
+  "info": {
+    "name": "Odd",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Reports",
+      "auth": { "type": "oauth2", "oauth2": [{ "key": "grant_type", "value": "client_credentials" }] },
+      "event": [
+        { "listen": "prerequest", "script": { "exec": ["console.log('for every request in the folder');"] } }
+      ],
+      "item": [
+        {
+          "name": "Query",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": { "mode": "graphql", "graphql": { "query": "{ me { id } }", "variables": "" } },
+            "url": { "raw": "https://api.example/graphql" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Feed",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/xml" }],
+        "body": { "mode": "raw", "raw": "<feed/>", "options": { "raw": { "language": "xml" } } },
+        "url": { "raw": "https://api.example/feed" }
+      }
+    },
+    {
+      "name": "User",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.sendRequest('https://api.example/audit', function () {});",
+              "tests['found'] = responseCode.code === 200;"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.example/users/:id",
+          "variable": [{ "key": "id", "value": "42" }]
+        }
+      }
+    },
+    {
+      "name": "Me",
+      "request": {
+        "auth": {
+          "type": "basic",
+          "basic": [
+            { "key": "username", "value": "ann" },
+            { "key": "password", "value": "pw" }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "https://api.example/me" }
+      }
+    }
+  ]
+}

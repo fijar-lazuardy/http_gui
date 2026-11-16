@@ -2,6 +2,47 @@
 
 **Result:** a Bruno collection becomes a collection (and its environments) in the workspace.
 
+## As built
+
+Done, except for the last line of "Done when": no collection made by Bruno itself was
+tried, only fixtures written by hand to Bruno's grammar and schema.
+
+**The formats, checked against Bruno's source (November 2026):**
+
+1. **Folder of `.bru` files** with `bruno.json` at the root: imported (`bruno.ImportDir`).
+   The grammar followed is `packages/bruno-lang/v2/src/bruToJson.js` and `envToJson.js`.
+2. **YAML folder** (OpenCollection: `opencollection.yml` at the root, `.yml` requests), an
+   option since Bruno 3.0: **not imported**. Go has no YAML decoder in its standard library,
+   and a dependency needs the owner's yes. Such a folder is refused with a message saying so.
+3. **Exported JSON** (`{name, version, items, environments, root}`, the schema in
+   `packages/bruno-schema`): imported (`bruno.ImportJSON`).
+
+What differs from the plan below, or was left open in it:
+
+- **One mapping.** The `.bru` files are read into the values the exported JSON has, and one
+  mapping takes those to the model, so the two forms cannot drift apart.
+- **Shared with Postman's importer** (`internal/importer`): `Result`, `Warning` and
+  `SplitQuery`. The same choices apply: auth is inherited (`inherit` takes the nearest
+  folder's or the collection's, `none` stops it), bearer and basic become an
+  `Authorization` header, and text bodies that are not JSON are kept with a warning.
+- **Order** is Bruno's: by `seq`, then by name. `Seq` is kept as Bruno has it.
+- **Folders without requests or a `folder.bru`** (scripts, certificates) are not imported.
+  Hidden folders, `node_modules` and the root's `environments` are skipped.
+- **Only `bruno.json` and `.bru` files are read.** A collection's folder may hold a `.env`
+  file with secrets; nothing opens it. Links are not followed.
+- **A file that does not parse** is skipped with a warning naming it and the line; the rest
+  of the collection is imported.
+- **Script calls:** any `bru.x` the script API lacks, and any `require` of a module other
+  than `crypto`, `crypto-js` and `chai`, is warned of. A test holds the importer's list of
+  `bru` functions to the script API's own.
+- **Left out without a warning:** `settings`, saved `example` blocks, a pair's
+  `@description` and other annotations, a form field's `@contentType`, and the docs of a
+  folder or the collection.
+- **Environments** come as workspace environments (Bruno's belong to a collection). A file's
+  `extends` and `vars:externalsecrets` blocks are warned of.
+- **UI:** "Import" is a menu: "Postman or Bruno files…" (JSON; the app tries Postman's
+  format, then Bruno's) and "Bruno collection folder…".
+
 ## First: check the formats
 
 Bruno has had more than one on-disk format. Before writing code, look at a collection made

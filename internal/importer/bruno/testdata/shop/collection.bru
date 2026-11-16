@@ -1,0 +1,24 @@
+meta {
+  type: collection
+}
+
+headers {
+  x-client: shop-tests
+}
+
+auth {
+  mode: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+vars:pre-request {
+  baseUrl: https://shop.example
+  ~old: x
+}
+
+script:pre-request {
+  console.log('before every request');
+}

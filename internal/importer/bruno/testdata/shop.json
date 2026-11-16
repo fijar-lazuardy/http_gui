@@ -1,0 +1,160 @@
+{
+  "name": "Shop",
+  "version": "1",
+  "items": [
+    {
+      "type": "http-request",
+      "name": "Feed",
+      "seq": 2,
+      "request": {
+        "url": "{{baseUrl}}/feed",
+        "method": "PUT",
+        "headers": [],
+        "params": [],
+        "body": { "mode": "xml", "xml": "<feed>\n  <id>1</id>\n</feed>", "formUrlEncoded": [], "multipartForm": [] },
+        "script": { "req": "const _ = require('lodash');\nawait bru.sleep(10);" },
+        "vars": {},
+        "assertions": [],
+        "tests": "",
+        "docs": "",
+        "auth": { "mode": "inherit" }
+      }
+    },
+    {
+      "type": "folder",
+      "name": "Orders",
+      "seq": 2,
+      "root": { "meta": { "name": "Orders", "seq": 2 } },
+      "items": [
+        {
+          "type": "http-request",
+          "name": "Create order",
+          "seq": 2,
+          "request": {
+            "url": "{{baseUrl}}/orders",
+            "method": "POST",
+            "headers": [{ "name": "accept", "value": "application/json", "enabled": true }],
+            "params": [],
+            "body": { "mode": "json", "json": "{\n  \"item\": {\"sku\": \"tea\", \"qty\": 2}\n}" },
+            "script": {
+              "req": "const body = JSON.stringify(req.getBody());\nif (body.length > 0) {\n  bru.setVar('bodyLength', String(body.length));\n}\nreq.setHeader('X-Body-Length', bru.getVar('bodyLength'));",
+              "res": "bru.setEnvVar('orderId', res.body.id);"
+            },
+            "tests": "test('created', function () {\n  expect(res.getStatus()).to.equal(201);\n});",
+            "auth": { "mode": "inherit" }
+          }
+        },
+        {
+          "type": "http-request",
+          "name": "List orders",
+          "seq": 1,
+          "request": {
+            "url": "{{baseUrl}}/orders?page=2&q=green tea",
+            "method": "GET",
+            "headers": [
+              { "name": "accept", "value": "application/json", "enabled": true },
+              { "name": "x-debug", "value": "1", "enabled": false },
+              { "name": "x:odd name", "value": "yes", "enabled": true }
+            ],
+            "params": [
+              { "name": "page", "value": "2", "type": "query", "enabled": true },
+              { "name": "q", "value": "green tea", "type": "query", "enabled": true },
+              { "name": "draft", "value": "1", "type": "query", "enabled": false }
+            ],
+            "body": { "mode": "none" },
+            "auth": { "mode": "inherit" }
+          }
+        },
+        {
+          "type": "folder",
+          "name": "Archive",
+          "items": [
+            {
+              "type": "http-request",
+              "name": "Purge",
+              "seq": 1,
+              "request": {
+                "url": "{{baseUrl}}/orders/:id",
+                "method": "DELETE",
+                "headers": [],
+                "params": [{ "name": "id", "value": "42", "type": "path", "enabled": true }],
+                "body": { "mode": "none" },
+                "auth": { "mode": "basic", "basic": { "username": "ann", "password": "pw" } }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "folder",
+      "name": "Auth",
+      "items": [
+        {
+          "type": "http-request",
+          "name": "Login",
+          "seq": 1,
+          "request": {
+            "url": "{{baseUrl}}/login",
+            "method": "POST",
+            "headers": [],
+            "params": [],
+            "body": {
+              "mode": "formUrlEncoded",
+              "formUrlEncoded": [
+                { "name": "user", "value": "ann", "enabled": true },
+                { "name": "remember", "value": "yes", "enabled": false }
+              ]
+            },
+            "vars": { "res": [{ "name": "token", "value": "res.body.token", "enabled": true }] },
+            "docs": "Logs in, and keeps the token.",
+            "auth": { "mode": "none" }
+          }
+        }
+      ]
+    },
+    {
+      "type": "http-request",
+      "name": "Upload",
+      "seq": 1,
+      "request": {
+        "url": "{{baseUrl}}/upload",
+        "method": "POST",
+        "headers": [],
+        "params": [],
+        "body": {
+          "mode": "multipartForm",
+          "multipartForm": [
+            { "type": "text", "name": "title", "value": "Photo", "enabled": true },
+            { "type": "file", "name": "file", "value": ["/tmp/photo.png"], "contentType": "image/png", "enabled": true }
+          ]
+        },
+        "auth": { "mode": "inherit" }
+      }
+    }
+  ],
+  "environments": [
+    {
+      "name": "Staging",
+      "variables": [
+        { "name": "baseUrl", "value": "https://staging.example", "type": "text", "enabled": true, "secret": false },
+        { "name": "old", "value": "x", "type": "text", "enabled": false, "secret": false },
+        { "name": "apiKey", "value": "", "type": "text", "enabled": true, "secret": true }
+      ]
+    }
+  ],
+  "root": {
+    "request": {
+      "headers": [{ "name": "x-client", "value": "shop-tests", "enabled": true }],
+      "auth": { "mode": "bearer", "bearer": { "token": "{{token}}" } },
+      "script": { "req": "console.log('before every request');" },
+      "vars": {
+        "req": [
+          { "name": "baseUrl", "value": "https://shop.example", "enabled": true },
+          { "name": "old", "value": "x", "enabled": false }
+        ]
+      }
+    }
+  },
+  "brunoConfig": { "version": "1", "name": "Shop", "type": "collection" }
+}

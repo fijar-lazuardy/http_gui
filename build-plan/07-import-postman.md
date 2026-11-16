@@ -3,6 +3,34 @@
 **Result:** a Postman collection export and a Postman environment export become a collection
 and an environment in the workspace.
 
+## As built
+
+Done, except for the last line of "Done when": no real export from Postman was tried, only
+the hand-written fixtures. What differs from the plan below, or was left open in it:
+
+- **Auth is inherited.** A request without its own `auth` gets the nearest one above it
+  (folder, then collection), as in Postman; `noauth` stops that. `bearer` becomes an
+  `Authorization` header, and so does `basic`, unless it holds `{{variables}}`, which would
+  have to be encoded when the request is sent. A request that already has an enabled
+  `Authorization` header keeps it. Every auth block is reported where the file has it.
+- **Raw bodies that are not JSON are kept**, as the JSON kind, with a warning: the text is
+  sent as written, as `application/json` unless a `Content-Type` header says otherwise.
+- **Globals** have a field of their own, `Result.Globals`. The app adds them to the
+  workspace's globals; a key that is already there keeps its value, and the report says so.
+- **A query in the URL** is cut off and becomes `Params`: from `url.query[]` when the file
+  has it, parsed (and percent-decoded) from the string otherwise.
+- **Path variables** without a value stay in the URL as `:id`, with a warning.
+- **Scripts:** besides the calls listed below, `pm.execution`, `pm.visualizer` and the old
+  `postman.*` / `tests[]` API are warned of.
+- **Left out without a warning:** descriptions, saved example responses (`response[]`),
+  `protocolProfileBehavior`, and a URL given only as `host`/`path` parts without `raw`
+  (reported as "has no URL").
+- **The v1 collection format** is refused with a message to export as v2.1.
+- **`Result` and `Warning`** are in `internal/importer`, shared with Bruno's importer
+  (step 08); an environment is `Result.Environments[0]`.
+- **UI:** the report dialog lists each file with what it became and its warnings. Files are
+  read on the main thread after the file dialog closes; they are small.
+
 ## Input formats (`internal/importer/postman`)
 
 - **Collection v2.1** (`info.schema` ends in `v2.1.0/collection.json`), and **v2.0**, which

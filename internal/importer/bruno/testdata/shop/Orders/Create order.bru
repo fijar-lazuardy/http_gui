@@ -1,0 +1,39 @@
+meta {
+  name: Create order
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/orders
+  body: json
+  auth: inherit
+}
+
+headers {
+  accept: application/json
+}
+
+body:json {
+  {
+    "item": {"sku": "tea", "qty": 2}
+  }
+}
+
+script:pre-request {
+  const body = JSON.stringify(req.getBody());
+  if (body.length > 0) {
+    bru.setVar('bodyLength', String(body.length));
+  }
+  req.setHeader('X-Body-Length', bru.getVar('bodyLength'));
+}
+
+script:post-response {
+  bru.setEnvVar('orderId', res.body.id);
+}
+
+tests {
+  test('created', function () {
+    expect(res.getStatus()).to.equal(201);
+  });
+}

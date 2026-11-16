@@ -1,0 +1,26 @@
+meta {
+  name: List orders
+  type: http
+  seq: 1
+  tags: [
+    smoke
+  ]
+}
+
+get {
+  url: {{baseUrl}}/orders?page=2&q=green tea
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page: 2
+  q: green tea
+  ~draft: 1
+}
+
+headers {
+  accept: application/json
+  ~x-debug: 1
+  "x:odd name": yes
+}
