@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/egoist/mygo/ui"
+
 	"http_gui/internal/model"
 )
 
@@ -219,6 +221,23 @@ func TestCancel(t *testing.T) {
 	f.tt.Frame()
 	if f.a.sending || f.a.result != nil || !f.tt.HasText("Send") || f.tt.HasText("Sending…") {
 		t.Errorf("after Cancel: sending %v, result %+v, texts %q", f.a.sending, f.a.result, f.tt.Texts())
+	}
+}
+
+// Ctrl+Enter sends the request from anywhere, not just the URL field.
+func TestCtrlEnterSends(t *testing.T) {
+	srv, got := echoServer(t)
+	f := newFixture(t)
+	f.openNew()
+	f.typeURL(srv.URL + "/ctrl")
+	f.tt.Key(ui.Ctrl, ui.KeyEnter)
+	(<-f.updates)()
+	f.tt.Frame()
+	if r := <-got; r.method != "GET" || r.path != "/ctrl" {
+		t.Errorf("Ctrl+Enter sent %s %s, want GET /ctrl", r.method, r.path)
+	}
+	if !f.tt.HasText("200 OK") {
+		t.Errorf("no response shown after Ctrl+Enter: %q", f.tt.Texts())
 	}
 }
 

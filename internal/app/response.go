@@ -109,10 +109,7 @@ func (a *App) loadResponse() {
 	lang := responseLanguage(resp.Headers.Get("Content-Type"))
 	text := string(resp.Body)
 	if !a.raw && lang != nil && lang.Name == "JSON" {
-		var buf bytes.Buffer
-		if json.Indent(&buf, resp.Body, "", "  ") == nil {
-			text = buf.String()
-		}
+		text = formatJSON(resp.Body)
 	}
 	buf := editor.NewBuffer(text)
 	buf.SetLanguage(lang)
@@ -269,6 +266,23 @@ func responseLanguage(contentType string) *editor.Language {
 		return editor.LanguageNamed("yaml")
 	}
 	return nil
+}
+
+// formatJSON indents JSON and decodes unicode escapes like & to their
+// characters, so that URLs and text are readable and copyable.
+func formatJSON(data []byte) string {
+	var v any
+	if json.Unmarshal(data, &v) != nil {
+		return string(data)
+	}
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	enc.SetIndent("", "  ")
+	if enc.Encode(v) != nil {
+		return string(data)
+	}
+	return strings.TrimSuffix(buf.String(), "\n")
 }
 
 func statusColor(t *ui.Theme, code int) ui.Color {

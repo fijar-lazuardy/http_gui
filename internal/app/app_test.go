@@ -188,6 +188,54 @@ func TestEditsSave(t *testing.T) {
 	}
 }
 
+// Typing {{ in the URL shows variable names from the environment and
+// collection, and picking one completes it.
+func TestVarSuggestion(t *testing.T) {
+	f := newFixture(t)
+	env := f.a.ws.Environments[0]
+	env.Variables = []model.KV{
+		{ID: "1", Key: "base_url", Value: "https://api.example.com", Enabled: true},
+		{ID: "2", Key: "api_key", Value: "secret", Enabled: true},
+	}
+	f.click("No environment")
+	f.click("Staging")
+	f.openNew()
+	f.typeURL("{{")
+	if !f.tt.HasText("{{base_url}}") {
+		t.Fatalf("variable suggestion not shown: %q", f.tt.Texts())
+	}
+	if !f.tt.HasText("{{api_key}}") {
+		t.Fatalf("api_key suggestion not shown: %q", f.tt.Texts())
+	}
+	f.click("{{base_url}}")
+	if f.a.urlText != "{{base_url}}" {
+		t.Errorf("clicking the suggestion set URL to %q, want {{base_url}}", f.a.urlText)
+	}
+	if f.tt.HasText("{{api_key}}") {
+		t.Error("suggestions still visible after selection")
+	}
+}
+
+// Typing more after {{ narrows the suggestions.
+func TestVarSuggestionFilters(t *testing.T) {
+	f := newFixture(t)
+	env := f.a.ws.Environments[0]
+	env.Variables = []model.KV{
+		{ID: "1", Key: "base_url", Value: "https://api.example.com", Enabled: true},
+		{ID: "2", Key: "api_key", Value: "secret", Enabled: true},
+	}
+	f.click("No environment")
+	f.click("Staging")
+	f.openNew()
+	f.typeURL("{{api")
+	if !f.tt.HasText("{{api_key}}") {
+		t.Fatalf("api_key not suggested for '{{api': %q", f.tt.Texts())
+	}
+	if f.tt.HasText("{{base_url}}") {
+		t.Error("base_url should not match 'api'")
+	}
+}
+
 // kvTester shows a key/value editor of rows alone.
 func kvTester(rows *[]model.KV) (*App, *ui.Tester) {
 	a := &App{}

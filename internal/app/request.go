@@ -3,6 +3,7 @@ package app
 import (
 	"bytes"
 	"encoding/json"
+	"maps"
 	"net/url"
 	"slices"
 	"strings"
@@ -36,6 +37,7 @@ func (a *App) requestPane(c *ui.Context) {
 	t := c.Theme()
 	r := a.open
 	ui.Column(c).Fill().Padding(t.Space(3)).Gap(t.Space(2)).Children(func() {
+		var urlEl ui.Element
 		ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).Children(func() {
 			method := r.Method
 			if method == "" {
@@ -49,8 +51,9 @@ func (a *App) requestPane(c *ui.Context) {
 			}
 
 			text := a.urlText
-			submitted := ui.TextInput(c, &a.urlText).Placeholder("https://example.com/{{path}}").Label("URL").
-				Font("monospace").Grow(1).Submitted()
+			urlEl = ui.TextInput(c, &a.urlText).Placeholder("https://example.com/{{path}}").Label("URL").
+				Font("monospace").Grow(1)
+			submitted := urlEl.Submitted()
 			if a.urlText != text {
 				setURL(r, a.urlText)
 				a.requestChanged(r)
@@ -63,6 +66,7 @@ func (a *App) requestPane(c *ui.Context) {
 				a.send()
 			}
 		})
+		a.varSuggestPopover(c, r, urlEl)
 		if missing := a.missingVars(); len(missing) > 0 {
 			ui.Text(c, "No value for "+braces(missing)).TextColor(t.Warning)
 		}
@@ -325,4 +329,104 @@ func unescape(s string) string {
 		return u
 	}
 	return s
+}
+
+// unclosedVar returns the partial name and its position after the last
+// unclosed {{ in text, or -1 if every {{ is closed.
+func unclosedVar(text string) (partial string, pos int) {
+	last := strings.LastIndex(text, "{{")
+	if last < 0 {
+		return "", -1
+	}
+	after := text[last+2:]
+	if strings.Contains(after, "}}") {
+		return "", -1
+	}
+	return after, last + 2
+}
+
+// varSuggestPopover shows a popover of variable names below the URL input
+// when the text has an unclosed {{.
+func (a *App) varSuggestPopover(c *ui.Context, r *model.Request, urlEl ui.Element) {
+	partial, pos := unclosedVar(a.urlText)
+	if pos < 0 {
+		a.varPopup = false
+		a.varDismissText = ""
+		return
+	}
+	suggestions := a.varSuggestions(partial)
+	if len(suggestions) == 0 {
+		a.varPopup = false
+		return
+	}
+	if !a.varPopup && a.urlText != a.varDismissText {
+		a.varPopup = true
+	}
+	if !a.varPopup {
+		return
+	}
+	t := c.Theme()
+	pop := ui.Popover(c, urlEl, &a.varPopup, func() {
+		ui.Scroll(c).MaxHeight(200).FillWidth().Children(func() {
+			ui.Column(c).FillWidth().Children(func() {
+				for _, name := range suggestions {
+					c.Key(name)
+					label := "{{" + name + "}}"
+					btn := ui.Button(c, label).FillWidth().FontSize(13).Font("monospace")
+					btn.OnClick(func() {
+						a.urlText = a.urlText[:pos] + name + "}}"
+						setURL(r, a.urlText)
+						a.requestChanged(r)
+						a.varPopup = false
+					})
+					_ = btn
+				}
+			})
+		})
+	}).Width(300).Padding(t.Space(1))
+	if pop.Dismissed() {
+		a.varDismissText = a.urlText
+	}
+}
+
+// varSuggestions returns variable names matching partial, from all scopes.
+func (a *App) varSuggestions(partial string) []string {
+	names := map[string]bool{}
+	if e := a.environment(); e != nil {
+		for _, kv := range e.Variables {
+			if kv.Enabled && kv.Key != "" {
+				names[kv.Key] = true
+			}
+		}
+	}
+	if it, ok := a.find(a.open.ID); ok {
+		for _, kv := range it.col.Variables {
+			if kv.Enabled && kv.Key != "" {
+				names[kv.Key] = true
+			}
+		}
+	}
+	for _, kv := range a.ws.Globals {
+		if kv.Enabled && kv.Key != "" {
+			names[kv.Key] = true
+		}
+	}
+	for k := range a.runtime {
+		names[k] = true
+	}
+	for _, d := range []string{"$guid", "$randomUUID", "$timestamp", "$isoTimestamp", "$randomInt"} {
+		names[d] = true
+	}
+	all := slices.Sorted(maps.Keys(names))
+	if partial == "" {
+		return all
+	}
+	lower := strings.ToLower(partial)
+	var out []string
+	for _, name := range all {
+		if strings.Contains(strings.ToLower(name), lower) {
+			out = append(out, name)
+		}
+	}
+	return out
 }

@@ -65,7 +65,9 @@ type App struct {
 	envDialog bool
 	envEdit   string // ID of the environment edited, "" for the globals
 
-	kvFocus kvField
+	kvFocus        kvField
+	varPopup       bool   // variable suggestion popover is open
+	varDismissText string // urlText when the popup was last dismissed
 
 	// The open request's editors and tabs (step 06).
 	urlText    string
@@ -150,6 +152,13 @@ func (a *App) View(c *ui.Context) {
 	}
 	a.errs = nil
 
+	if a.open != nil {
+		c.OnWindowShortcut(ui.Ctrl, ui.KeyEnter, func() {
+			if !a.sending {
+				a.send()
+			}
+		})
+	}
 	ui.Split(c, &a.sidebarWidth, func() { a.sidebar(c) }, func() { a.main(c) }).SplitReset(260).Fill()
 	a.dialogs(c)
 }
