@@ -135,9 +135,9 @@
     },
     body: {
       get mode() { return modes[R.body.kind]; },
-      get raw() { return R.body.raw || ''; },
+      get raw() { return host.replaceIn(R.body.raw || ''); },
       set raw(v) { setRawBody(v); },
-      toString: function () { return R.body.kind === 'json' ? R.body.raw || '' : ''; },
+      toString: function () { return R.body.kind === 'json' ? host.replaceIn(R.body.raw || '') : ''; },
     },
   };
 
@@ -261,7 +261,8 @@
     // A JSON body is an object to Bruno's scripts, not its text.
     getBody: function () {
       if (R.body.kind !== 'json') return undefined;
-      try { return JSON.parse(R.body.raw); } catch (e) { return R.body.raw; }
+      var raw = host.replaceIn(R.body.raw || '');
+      try { return JSON.parse(raw); } catch (e) { return raw; }
     },
     setBody: setRawBody,
   };

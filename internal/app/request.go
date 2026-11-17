@@ -172,6 +172,10 @@ func (a *App) loadEditors() {
 	a.post = scriptEditor(r.PostScript, "Post-response script", "pm.test('is OK', () => pm.response.to.have.status(200))")
 	a.versions = [3]uint64{a.body.Buffer.Version(), a.pre.Buffer.Version(), a.post.Buffer.Version()}
 	a.jsonErr = jsonError(r.Body.Raw)
+
+	for _, st := range []*editor.State{a.body, a.pre, a.post} {
+		st.OnCompletion = a.editorVarCompletion(st)
+	}
 }
 
 func scriptEditor(s model.Script, label, placeholder string) *editor.State {
@@ -209,6 +213,7 @@ func (a *App) syncEditors() {
 			}
 		}
 		a.requestChanged(r)
+		a.checkVarCompletion(st)
 	}
 }
 
@@ -387,6 +392,51 @@ func (a *App) varSuggestPopover(c *ui.Context, r *model.Request, urlEl ui.Elemen
 	if pop.Dismissed() {
 		a.varDismissText = a.urlText
 	}
+}
+
+// editorVarCompletion returns an OnCompletion callback for an editor that
+// shows {{variable}} suggestions when the caret is after an unclosed {{.
+func (a *App) editorVarCompletion(st *editor.State) func(editor.CompletionRequest) {
+	return func(req editor.CompletionRequest) {
+		text := st.Buffer.String()
+		if req.Offset > len(text) {
+			return
+		}
+		partial, varPos := unclosedVar(text[:req.Offset])
+		if varPos < 0 {
+			return
+		}
+		names := a.varSuggestions(partial)
+		if len(names) == 0 {
+			st.ShowCompletions(varPos, nil)
+			return
+		}
+		items := make([]editor.Completion, len(names))
+		for i, name := range names {
+			items[i] = editor.Completion{Label: name, Insert: name + "}}", Kind: editor.CompletionVariable}
+		}
+		st.ShowCompletions(varPos, items)
+	}
+}
+
+// checkVarCompletion triggers variable completions when {{ was just typed
+// in an editor. The editor's own completion system only fires for word
+// characters; { is not one, so this bridges the gap.
+func (a *App) checkVarCompletion(st *editor.State) {
+	text := st.Buffer.String()
+	pos := st.Cursor()
+	if pos < 2 || pos > len(text) || text[pos-2:pos] != "{{" {
+		return
+	}
+	names := a.varSuggestions("")
+	if len(names) == 0 {
+		return
+	}
+	items := make([]editor.Completion, len(names))
+	for i, name := range names {
+		items[i] = editor.Completion{Label: name, Insert: name + "}}", Kind: editor.CompletionVariable}
+	}
+	st.ShowCompletions(pos, items)
 }
 
 // varSuggestions returns variable names matching partial, from all scopes.

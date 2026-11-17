@@ -23,10 +23,11 @@ const saveDelay = 500 * time.Millisecond
 // App holds everything the window shows that lasts from frame to frame.
 // The view is a method on it.
 type App struct {
-	ws    *store.Workspace
-	envID string         // chosen environment, "" for none
-	open  *model.Request // the request being edited
-	tree  map[string]*bool
+	ws      *store.Workspace
+	envID   string         // chosen environment, "" for none
+	open    *model.Request // the request being edited
+	tree    map[string]*bool
+	results map[string]*runner.Result // per-request responses, keyed by ID
 	// update runs a function on the main thread and redraws: the window's
 	// Update, or a test's own.
 	update func(func())
@@ -120,6 +121,7 @@ func New(ws *store.Workspace, update func(func())) *App {
 		ws:           ws,
 		update:       update,
 		tree:         map[string]*bool{},
+		results:      map[string]*runner.Result{},
 		pending:      map[string]func() error{},
 		runtime:      map[string]string{},
 		sidebarWidth: 260,

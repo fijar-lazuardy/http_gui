@@ -61,6 +61,9 @@ func (a *App) finish(run int, col *model.Collection, env *model.Environment, res
 	}
 	a.cancel, a.sending, a.result = nil, false, &res
 	a.raw = false
+	if a.open != nil {
+		a.results[a.open.ID] = a.result
+	}
 	a.loadResponse()
 
 	a.runtime = res.Scopes.Runtime

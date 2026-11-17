@@ -189,8 +189,15 @@ func (a *App) openRequest(r *model.Request) {
 	}
 	a.stop()
 	a.open = r
-	a.result = nil
+	a.result = a.results[r.ID]
+	a.respTab = 0
+	a.raw = false
 	a.loadEditors()
+	if a.result != nil {
+		a.loadResponse()
+	} else {
+		a.response = nil
+	}
 }
 
 func (a *App) newCollection() {
@@ -316,6 +323,9 @@ func (a *App) delete(it item) {
 		a.ws.Collections = slices.DeleteFunc(a.ws.Collections, func(c *model.Collection) bool { return c == it.col })
 	default:
 		it.parent.Folders = slices.DeleteFunc(it.parent.Folders, func(f *model.Folder) bool { return f == it.folder })
+	}
+	if it.req != nil {
+		delete(a.results, it.req.ID)
 	}
 	if a.open != nil {
 		if _, ok := a.find(a.open.ID); !ok {

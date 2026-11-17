@@ -93,6 +93,32 @@ func TestSendShowsResponse(t *testing.T) {
 	}
 }
 
+// Switching away from a request and back keeps its response.
+func TestResponsePersistsAcrossSwitch(t *testing.T) {
+	srv, got := echoServer(t)
+	f := newFixture(t)
+	reqA := f.openNew()
+	f.typeURL(srv.URL + "/a")
+	f.send()
+	<-got
+	if !f.tt.HasText("200 OK") {
+		t.Fatalf("no response for request A: %q", f.tt.Texts())
+	}
+
+	// Switch to another request and back.
+	f.click("List users")
+	if f.tt.HasText("200 OK") {
+		t.Error("request B shows request A's response")
+	}
+	f.click(reqA.Name)
+	if !f.tt.HasText("200 OK") {
+		t.Errorf("response lost after switching back: %q", f.tt.Texts())
+	}
+	if body := f.a.response.Buffer.String(); body != "pong" {
+		t.Errorf("response body after switch: %q, want %q", body, "pong")
+	}
+}
+
 func TestMethodSelect(t *testing.T) {
 	srv, got := echoServer(t)
 	f := newFixture(t)

@@ -132,7 +132,7 @@ func TestPreRequestChangesTheRequest(t *testing.T) {
 	before := *in.Request
 	out := exec(t, in)
 
-	if got, want := in.Scopes.Runtime["seen"], `POST|{{base}}/orders?page=1|1|false|raw|{"user": "{{user}}"}|prerequest`; got != want {
+	if got, want := in.Scopes.Runtime["seen"], `POST|{{base}}/orders?page=1|1|false|raw|{"user": "ada"}|prerequest`; got != want {
 		t.Errorf("the script saw %q, want %q", got, want)
 	}
 	r := out.Request
@@ -148,6 +148,26 @@ func TestPreRequestChangesTheRequest(t *testing.T) {
 	}
 	if !reflect.DeepEqual(*in.Request, before) {
 		t.Error("the script changed the request as the user wrote it")
+	}
+}
+
+// A pre-request script sees the body with its variables resolved, so
+// that a signature computed from the body matches what is sent.
+func TestBodyResolvedInScript(t *testing.T) {
+	got := run(t, `
+		const body = req.getBody();
+		bru.setVar('user', body.user);
+		bru.setVar('raw', pm.request.body.raw);
+		bru.setVar('str', pm.request.body.toString());
+	`)
+	if got["user"] != "ada" {
+		t.Errorf("req.getBody().user = %q, want %q", got["user"], "ada")
+	}
+	if got["raw"] != `{"user": "ada"}` {
+		t.Errorf("pm.request.body.raw = %q, want resolved", got["raw"])
+	}
+	if got["str"] != `{"user": "ada"}` {
+		t.Errorf("pm.request.body.toString() = %q, want resolved", got["str"])
 	}
 }
 
@@ -601,7 +621,7 @@ func TestBruno(t *testing.T) {
 	}
 	r := out.Request
 	sum := sha256.Sum256([]byte("POST{{base}}/orders?page=1"))
-	if r.Method != "PATCH" || r.URL != "{{base}}/orders?page=1&v=2" || r.Body.Raw != `{"user":"{{user}}","signed":true}` ||
+	if r.Method != "PATCH" || r.URL != "{{base}}/orders?page=1&v=2" || r.Body.Raw != `{"user":"ada","signed":true}` ||
 		r.Headers[1].Value != "application/json" || r.Headers[2].Value != hex.EncodeToString(sum[:]) {
 		t.Errorf("request after the script: %+v", r)
 	}

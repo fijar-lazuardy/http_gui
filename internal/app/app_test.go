@@ -236,6 +236,45 @@ func TestVarSuggestionFilters(t *testing.T) {
 	}
 }
 
+// Typing {{ in the body editor shows variable completions.
+func TestBodyVarCompletion(t *testing.T) {
+	f := newFixture(t)
+	env := f.a.ws.Environments[0]
+	env.Variables = []model.KV{
+		{ID: "1", Key: "account_id", Value: "123", Enabled: true},
+	}
+	f.click("No environment")
+	f.click("Staging")
+	f.openNew()
+	f.click("Body")
+	f.click("JSON")
+	f.click("JSON body")
+	f.tt.Type("{{")
+	f.tt.Frame()
+	if !f.tt.HasText("account_id") {
+		t.Fatalf("body editor did not show variable completion for '{{': %q", f.tt.Texts())
+	}
+}
+
+// Typing {{ in a script editor shows variable completions.
+func TestScriptVarCompletion(t *testing.T) {
+	f := newFixture(t)
+	env := f.a.ws.Environments[0]
+	env.Variables = []model.KV{
+		{ID: "1", Key: "token", Value: "abc", Enabled: true},
+	}
+	f.click("No environment")
+	f.click("Staging")
+	f.openNew()
+	f.click("Scripts")
+	f.click("Pre-request script")
+	f.tt.Type("{{")
+	f.tt.Frame()
+	if !f.tt.HasText("token") {
+		t.Fatalf("script editor did not show variable completion for '{{': %q", f.tt.Texts())
+	}
+}
+
 // kvTester shows a key/value editor of rows alone.
 func kvTester(rows *[]model.KV) (*App, *ui.Tester) {
 	a := &App{}
