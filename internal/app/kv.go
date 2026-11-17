@@ -17,6 +17,8 @@ type kvOptions struct {
 	// the ID of a File row whose file is to be chosen.
 	files      bool
 	chooseFile func(id string)
+	varChanged func()            // called when a variable completion modifies a value
+	varAnchor  func(ui.Element) // called when a value registers for var completion
 }
 
 // kvField is a text input of a key/value editor, for the focus: of the row
@@ -64,6 +66,16 @@ func (a *App) kvEditor(c *ui.Context, rows *[]model.KV, opt kvOptions) (changed 
 						FocusBind(&a.kvFocus, kvField{opt.list, row.ID, 1})
 					if row.Secret {
 						value.Password()
+					}
+					if opt.varChanged != nil {
+						rowVal := &row.Value
+						notify := opt.varChanged
+						if a.offerVarCompletion(rowVal, func(newText string) {
+							*rowVal = newText
+							notify()
+						}) && opt.varAnchor != nil {
+							opt.varAnchor(value)
+						}
 					}
 				}
 				if opt.secret {

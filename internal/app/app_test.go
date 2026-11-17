@@ -275,6 +275,30 @@ func TestScriptVarCompletion(t *testing.T) {
 	}
 }
 
+// Typing {{ in a header value shows variable suggestions in the popover.
+func TestHeaderVarCompletion(t *testing.T) {
+	f := newFixture(t)
+	env := f.a.ws.Environments[0]
+	env.Variables = []model.KV{
+		{ID: "1", Key: "token", Value: "abc", Enabled: true},
+	}
+	f.click("No environment")
+	f.click("Staging")
+	r := f.openNew()
+	r.Headers = []model.KV{{ID: "h1", Key: "Authorization", Value: "", Enabled: true}}
+	f.tt.Frame()
+	f.click("Headers")
+	f.click("Value")
+	f.tt.Type("Bearer {{")
+	if !f.tt.HasText("{{token}}") {
+		t.Fatalf("header value did not show variable suggestion for '{{': %q", f.tt.Texts())
+	}
+	f.click("{{token}}")
+	if r.Headers[0].Value != "Bearer {{token}}" {
+		t.Errorf("picking the suggestion set header value to %q, want %q", r.Headers[0].Value, "Bearer {{token}}")
+	}
+}
+
 // kvTester shows a key/value editor of rows alone.
 func kvTester(rows *[]model.KV) (*App, *ui.Tester) {
 	a := &App{}

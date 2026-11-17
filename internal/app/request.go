@@ -36,8 +36,10 @@ func (a *App) main(c *ui.Context) {
 func (a *App) requestPane(c *ui.Context) {
 	t := c.Theme()
 	r := a.open
+	a.varTarget = nil
 	ui.Column(c).Fill().Padding(t.Space(3)).Gap(t.Space(2)).Children(func() {
 		var urlEl ui.Element
+		var varAnchor ui.Element
 		ui.Row(c).FillWidth().Gap(t.Space(2)).AlignItems(ui.Center).Children(func() {
 			method := r.Method
 			if method == "" {
@@ -66,36 +68,48 @@ func (a *App) requestPane(c *ui.Context) {
 				a.send()
 			}
 		})
-		a.varSuggestPopover(c, r, urlEl)
+		if a.offerVarCompletion(&a.urlText, func(newText string) {
+			a.urlText = newText
+			setURL(r, a.urlText)
+			a.requestChanged(r)
+		}) {
+			varAnchor = urlEl
+		}
 		if missing := a.missingVars(); len(missing) > 0 {
 			ui.Text(c, "No value for "+braces(missing)).TextColor(t.Warning)
 		}
 
+		reqChanged := func() { a.requestChanged(r) }
+		setAnchor := func(el ui.Element) { varAnchor = el }
 		ui.Tabs(c, &a.reqTab, "Params", "Headers", "Body", "Scripts")
 		switch a.reqTab {
 		case 0:
 			ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-				if a.kvEditor(c, &r.Params, kvOptions{list: "params"}) {
+				if a.kvEditor(c, &r.Params, kvOptions{list: "params", varChanged: func() {
+					a.urlText = displayURL(r)
+					a.requestChanged(r)
+				}, varAnchor: setAnchor}) {
 					a.urlText = displayURL(r)
 					a.requestChanged(r)
 				}
 			})
 		case 1:
 			ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-				if a.kvEditor(c, &r.Headers, kvOptions{list: "headers"}) {
+				if a.kvEditor(c, &r.Headers, kvOptions{list: "headers", varChanged: reqChanged, varAnchor: setAnchor}) {
 					a.requestChanged(r)
 				}
 			})
 		case 2:
-			a.bodyTab(c, r)
+			a.bodyTab(c, r, setAnchor)
 		case 3:
 			a.scriptsTab(c, r)
 		}
+		a.renderVarPopover(c, varAnchor)
 	})
 	a.syncEditors()
 }
 
-func (a *App) bodyTab(c *ui.Context, r *model.Request) {
+func (a *App) bodyTab(c *ui.Context, r *model.Request, setAnchor func(ui.Element)) {
 	t := c.Theme()
 	kind := max(slices.Index(bodyKinds, r.Body.Kind), 0)
 	before := kind
@@ -122,14 +136,16 @@ func (a *App) bodyTab(c *ui.Context, r *model.Request) {
 	case model.BodyJSON:
 		editor.View(c.Key("body"), a.body).Grow(1).FillWidth()
 	case model.BodyFormData:
+		reqChanged := func() { a.requestChanged(r) }
 		ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-			if a.kvEditor(c, &r.Body.Form, kvOptions{list: "form", files: true, chooseFile: a.pickFile}) {
+			if a.kvEditor(c, &r.Body.Form, kvOptions{list: "form", files: true, chooseFile: a.pickFile, varChanged: reqChanged, varAnchor: setAnchor}) {
 				a.requestChanged(r)
 			}
 		})
 	case model.BodyURLEncoded:
+		reqChanged := func() { a.requestChanged(r) }
 		ui.Scroll(c).Grow(1).FillWidth().Children(func() {
-			if a.kvEditor(c, &r.Body.Form, kvOptions{list: "urlencoded"}) {
+			if a.kvEditor(c, &r.Body.Form, kvOptions{list: "urlencoded", varChanged: reqChanged, varAnchor: setAnchor}) {
 				a.requestChanged(r)
 			}
 		})
@@ -350,38 +366,63 @@ func unclosedVar(text string) (partial string, pos int) {
 	return after, last + 2
 }
 
-// varSuggestPopover shows a popover of variable names below the URL input
-// when the text has an unclosed {{.
-func (a *App) varSuggestPopover(c *ui.Context, r *model.Request, urlEl ui.Element) {
-	partial, pos := unclosedVar(a.urlText)
+// varInputTarget tracks the text and apply callback for the variable
+// suggestion popover, without storing a ui.Element (which must not live
+// in a struct).
+type varInputTarget struct {
+	text  *string
+	pos   int          // position after {{ in *text
+	apply func(string) // sets the text and handles side effects
+}
+
+// offerVarCompletion registers a TextInput as a candidate for the variable
+// suggestion popover. The last candidate with an unclosed {{ wins.
+// Returns true when it registered, so the caller can track the anchor element.
+func (a *App) offerVarCompletion(text *string, apply func(string)) bool {
+	_, pos := unclosedVar(*text)
 	if pos < 0 {
+		return false
+	}
+	a.varTarget = &varInputTarget{text, pos, apply}
+	return true
+}
+
+// renderVarPopover shows the variable suggestion popover anchored to el
+// for whichever TextInput was registered by offerVarCompletion this frame.
+func (a *App) renderVarPopover(c *ui.Context, el ui.Element) {
+	tgt := a.varTarget
+	if tgt == nil {
 		a.varPopup = false
+		a.varDismissPtr = nil
 		a.varDismissText = ""
 		return
 	}
+	partial, _ := unclosedVar(*tgt.text)
 	suggestions := a.varSuggestions(partial)
 	if len(suggestions) == 0 {
 		a.varPopup = false
 		return
 	}
-	if !a.varPopup && a.urlText != a.varDismissText {
+	if !a.varPopup && (tgt.text != a.varDismissPtr || *tgt.text != a.varDismissText) {
 		a.varPopup = true
 	}
 	if !a.varPopup {
 		return
 	}
 	t := c.Theme()
-	pop := ui.Popover(c, urlEl, &a.varPopup, func() {
+	pop := ui.Popover(c, el, &a.varPopup, func() {
 		ui.Scroll(c).MaxHeight(200).FillWidth().Children(func() {
 			ui.Column(c).FillWidth().Children(func() {
 				for _, name := range suggestions {
 					c.Key(name)
 					label := "{{" + name + "}}"
+					text := tgt.text
+					pos := tgt.pos
+					apply := tgt.apply
 					btn := ui.Button(c, label).FillWidth().FontSize(13).Font("monospace")
 					btn.OnClick(func() {
-						a.urlText = a.urlText[:pos] + name + "}}"
-						setURL(r, a.urlText)
-						a.requestChanged(r)
+						newText := (*text)[:pos] + name + "}}"
+						apply(newText)
 						a.varPopup = false
 					})
 					_ = btn
@@ -390,7 +431,8 @@ func (a *App) varSuggestPopover(c *ui.Context, r *model.Request, urlEl ui.Elemen
 		})
 	}).Width(300).Padding(t.Space(1))
 	if pop.Dismissed() {
-		a.varDismissText = a.urlText
+		a.varDismissPtr = tgt.text
+		a.varDismissText = *tgt.text
 	}
 }
 

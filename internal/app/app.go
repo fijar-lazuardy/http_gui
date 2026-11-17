@@ -67,8 +67,10 @@ type App struct {
 	envEdit   string // ID of the environment edited, "" for the globals
 
 	kvFocus        kvField
-	varPopup       bool   // variable suggestion popover is open
-	varDismissText string // urlText when the popup was last dismissed
+	varPopup       bool    // variable suggestion popover is open
+	varDismissPtr  *string // the text pointer when the popup was dismissed
+	varDismissText string  // text value when the popup was dismissed
+	varTarget      *varInputTarget
 
 	// The open request's editors and tabs (step 06).
 	urlText    string
